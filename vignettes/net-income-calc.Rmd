@@ -1,0 +1,196 @@
+---
+title: "Calculating BIST Net Income From OECD Data"
+author: "Ian Salter"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(ggplot2)
+library(pracma)
+library(EnvStats)
+source("../R/distributions.R")
+```
+
+The [OECD lists](https://www.oecd.org/social/income-distribution-database.htm) Gini and Mean Income data for  before and after the application of tax and benefits. From this data, assuming a given probability distribution, it is possible to derive a simple model of a net income function that shows the net income for very possible gross income value. This approximation is named a Basic Income Simple Tax (BIST) net income function. 
+
+Here we consider two possible probability distributions as possible models of income distribution: The Log Normal Distribution and the Pareto Distribution.
+
+The [Log Normal Distribution](https://en.wikipedia.org/wiki/Log-normal_distribution) is defined in terms of two parameters $\mu$, the mean, and $\sigma$, the standard deviation of the variables natural logarithm (sdlog). The following plot shows the Probability Density Function for the logormal distribution with $\mu = 0$ and various values of $\sigma$: 
+
+```{r echo = FALSE}
+p <- ggplot(data = data.frame(x = 0), mapping = aes(x = x))
+p +
+  stat_function(fun = dlnorm, args = list(sdlog = 0.25), colour = "red") +
+  geom_text(aes(x= 2.2, y = 1.5), label = "sdlog = 0.25", size = 3, colour = "red") +
+  stat_function(fun = dlnorm, args = list(sdlog = 0.5), colour = "green") +
+  geom_text(aes(x= 2.5, y = 0.5), label = "sdlog = 0.5", size = 3, colour = "green") +
+  stat_function(fun = dlnorm, args = list(sdlog = 1), colour = "blue") +
+  geom_text(aes(x= 2.8, y = 0.25), label = " sdlog = 1", size = 3, colour = "blue") +
+  xlim(0, 5) +
+  ylim(0, 2) +
+  ylab("PDF")
+```
+
+The [Pareto Distribution](https://en.wikipedia.org/wiki/Pareto_distribution) is defined in terms of two parameters $x_{m}$, the scale (or location) and $\alpha$, the shape, The following plot shows the Probability Density Function for the pareto distribution for $x_{m} = 1$ and various values of $\alpha$:
+
+```{r echo = FALSE}
+p <- ggplot(data = data.frame(x = 0), mapping = aes(x = x))
+p +
+  stat_function(fun = dpareto, args = list(location = 1, shape = 3), colour = "red") +
+  geom_text(aes(x= 2.2, y = 1.5), label = "shape = 3", size = 3, colour = "red") +
+  stat_function(fun = dpareto, args = list(location = 1, shape = 2), colour = "green") +
+  geom_text(aes(x= 2.5, y = 0.5), label = "shape = 2", size = 3, colour = "green") +
+  stat_function(fun = dpareto, args = list(location = 1, shape = 1), colour = "blue") +
+  geom_text(aes(x= 3.5, y = 0.25), label = " shape = 1", size = 3, colour = "blue") +
+  xlim(0, 5) +
+  ylim(0, 3) +
+  ylab("PDF")
+```  
+
+
+Given values of $gini$ and mean $\mu$ we can calculate the parameters for both lognormal and pareto distributions For the lognormal distribution:
+
+$\mu = \mu$
+
+$\sigma = 2erf^{-1}(gini)$
+
+For the pareto distribution (assuming gini is not 1):
+
+$x_{m} = \frac{(\alpha - 1)\mu}{\alpha}$
+
+$\alpha = \frac{1 + gini}{2gini}$
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+For 2017 we have the following OECD data for the UK:
+
+```{r echo = FALSE}
+total_earnings = 20051
+capital_income = 1223
+self_emp_income = 3156
+
+gini_net = 0.357
+mean_net = 22879
+gini_gross = 0.506
+mean_gross = total_earnings + capital_income + self_emp_income
+```
+
+* Gini (disposable income, post taxes and transfers): `r format(gini_net)` 
+* Mean disposable income (current prices): `r format(mean_net)`   
+* Gini (market income before taxes and transfers) : `r format(gini_gross)`  
+* Mean Income Before Tax: `r format(mean_gross)` calculated by summing  
+  + Total Earnings (current prices): `r format(total_earnings)`
+  + Capital Income (current prices): `r format(capital_income)`
+  + Income from self-employment and goods produced for own consumption (current prices): 
+  `r format(self_emp_income)`
+
+
+
+
+  
+Figure 1 shows log normal probability distributions for the UK in 2017 where the OECD data:
+
+```{r echo = FALSE}
+lnorm_sdlog(gini_net)
+probability_distribution <- function(x){
+  dlnorm(x)
+}
+modified_distribution <- function(x){
+  dlnorm(x, sdlog = lnorm_sdlog(gini_net))
+}
+
+p <- ggplot(data = data.frame(x = 0), mapping = aes(x = x))
+p +
+  stat_function(fun = probability_distribution) +
+  stat_function(fun = modified_distribution,
+                mapping = aes(linetype = "dotted")) +
+                xlim(0, 5) +
+                ylim(0, 1)
+```
+
+```{r echo = FALSE}
+net_income_distribution <- function(x){
+  dlnorm(x, meanlog = mean_net, sdlog = lnorm_sdlog(gini_net))
+}
+gross_income_distribution <- function(x){
+  dlnorm(x, meanlog = mean_gross, sdlog = lnorm_sdlog(gini_gross))
+}
+p <- ggplot(data = data.frame(x = 0), mapping = aes(x = x))
+p +
+  stat_function(fun = net_income_distribution) +
+  stat_function(fun = gross_income_distribution) +
+  xlim(0, 1000000) +
+  ylim(0, 0.000000000000000000001)
+```
+
+Stuff below is from template
+
+---
+
+Vignettes are long form documentation commonly included in packages. Because they are part of the distribution of the package, they need to be as compact as possible. The `html_vignette` output type provides a custom style sheet (and tweaks some options) to ensure that the resulting html is as small as possible. The `html_vignette` format:
+
+- Never uses retina figures
+- Has a smaller default figure size
+- Uses a custom CSS stylesheet instead of the default Twitter Bootstrap style
+
+## Vignette Info
+
+Note the various macros within the `vignette` section of the metadata block above. These are required in order to instruct R how to build the vignette. Note that you should change the `title` field and the `\VignetteIndexEntry` to match the title of your vignette.
+
+## Styles
+
+The `html_vignette` template includes a basic CSS theme. To override this theme you can specify your own CSS in the document metadata as follows:
+
+    output: 
+      rmarkdown::html_vignette:
+        css: mystyles.css
+
+## Figures
+
+The figure sizes have been customised so that you can easily put two images side-by-side. 
+
+```{r, fig.show='hold'}
+plot(1:10)
+plot(10:1)
+```
+
+You can enable figure captions by `fig_caption: yes` in YAML:
+
+    output:
+      rmarkdown::html_vignette:
+        fig_caption: yes
+
+Then you can use the chunk option `fig.cap = "Your figure caption."` in **knitr**.
+
+## More Examples
+
+You can write math expressions, e.g. $Y = X\beta + \epsilon$, footnotes^[A footnote here.], and tables, e.g. using `knitr::kable()`.
+
+```{r, echo=FALSE, results='asis'}
+knitr::kable(head(mtcars, 10))
+```
+
+Also a quote using `>`:
+
+> "He who gives up [code] safety for [code] speed deserves neither."
+([via](https://twitter.com/hadleywickham/status/504368538874703872))

@@ -22,7 +22,7 @@ lnorm_sdlog <- function(gini){
 #' pareto_shape(0.5)
 #' pareto_shape(1)
 pareto_shape <- function(gini){
-  NULL
+  1 / (2 * gini) + 1/2
 }
 
 
@@ -36,5 +36,6 @@ pareto_shape <- function(gini){
 #' pareto_shape(1000, 0.5)
 #' pareto_shape(1000, 1)
 pareto_location <- function(mean, gini){
-  NULL
+  shape = pareto_shape(gini)
+  ((shape - 1) * mean) / shape
 }
